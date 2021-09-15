@@ -6,7 +6,7 @@ from telethon import events
 from tortoolkit import SessionVars
 import asyncio as aio
 from .getVars import get_val
-from .database_handle import TorToolkitDB
+from ..database.dbhandler import TorToolkitDB
 from functools import partial
 import time,os,configparser,logging,traceback
 
@@ -18,6 +18,7 @@ TIMEOUT_SEC = 60
 # this file will contian all the handlers and code for settings
 # code can be more modular i think but not bothering now
 # todo make the code more modular
+
 no = "❌"
 yes = "✅"
 # Central object is not used its Acknowledged 
@@ -106,6 +107,9 @@ async def handle_setting_callback(e):
         # this is menu
         mmes = await e.get_message()
         await handle_settings(mmes,True,"\nWelcome to Rclone Config Menu. TD= Team Drive, ND= Normal Drive",submenu="rclonemenu",session_id=session_id)
+    elif cmd[1] == "meganzmenu":
+        mmes = await e.get_message()
+        await handle_settings(mmes,True,"\nWelcome to Mega.nz Config Menu.",submenu="meganzmenu",session_id=session_id)
     elif cmd[1] == "mainmenu":
         # this is menu
         mmes = await e.get_message()
@@ -222,6 +226,60 @@ async def handle_setting_callback(e):
         SessionVars.update_var("USETTINGS_IN_PRIVATE",val)
         mmes = await e.get_message()
         await handle_settings(mmes,True,f"<b><u>Changed the value to {val} of Allow USETTINGS IN PRIVATE.</b></u>","ctrlacts",session_id=session_id)
+    
+    elif cmd[1] == "meganzenable":
+        await e.answer("Done.")
+        if cmd[2] == "true":
+            val = True
+        else:
+            val = False
+        db.set_variable("MEGA_ENABLE",val)
+        SessionVars.update_var("MEGA_ENABLE",val)
+        mmes = await e.get_message()
+        await handle_settings(mmes,True,f"<b><u>Changed the value to {val} of Mega Enabled.</b></u>","meganzmenu",session_id=session_id)
+    elif cmd[1] == "megafolder":
+        await e.answer("Done.")
+        if cmd[2] == "true":
+            val = True
+        else:
+            val = False
+        db.set_variable("ALLOW_MEGA_FOLDER",val)
+        SessionVars.update_var("ALLOW_MEGA_FOLDER",val)
+        mmes = await e.get_message()
+        await handle_settings(mmes,True,f"<b><u>Changed the value to {val} of Mega Folder Enabled.</b></u>","meganzmenu",session_id=session_id)
+    elif cmd[1] == "megsfiles":
+        await e.answer("Done.")
+        if cmd[2] == "true":
+            val = True
+        else:
+            val = False
+        db.set_variable("ALLOW_MEGA_FILES",val)
+        SessionVars.update_var("ALLOW_MEGA_FILES",val)
+        mmes = await e.get_message()
+        await handle_settings(mmes,True,f"<b><u>Changed the value to {val} of Mega Files Enabled.</b></u>","meganzmenu",session_id=session_id)
+    
+    elif cmd[1] == "remotelist":
+        await e.answer("Done.")
+        if cmd[2] == "true":
+            val = True
+        else:
+            val = False
+        db.set_variable("SHOW_REMOTE_LIST",val)
+        SessionVars.update_var("SHOW_REMOTE_LIST",val)
+        mmes = await e.get_message()
+        await handle_settings(mmes,True,f"<b><u>Changed the value to {val} of Show rmeote list.</b></u>","rclonemenu",session_id=session_id)
+    
+    elif cmd[1] == "maxmeganzsize":
+        # what will a general manager require
+        # answer message, type handler, value 
+        await e.answer("Type the new value for MAX Mega SIZE. Note that integer is expected.",alert=True)
+
+        mmes = await e.get_message()
+        await mmes.edit(f"{mmes.raw_text}\n/ignore to go back",buttons=None)
+        val = await get_value(e)
+        
+        await general_input_manager(e,mmes,"MAX_MEGA_LIMIT","int",val,db,"meganzmenu")
+
     elif cmd[1] == "metainfo":
         await e.reply("Add @metainforobot to your group to get the metadata easily.")
     elif cmd[1] == "selfdest":
@@ -235,7 +293,6 @@ async def handle_setting_callback(e):
 async def handle_settings(e,edit=False,msg="",submenu=None,session_id=None):
     # this function creates the menu
     # and now submenus too
-    await handle_time_cmd()
     if session_id is None:
         session_id = time.time()
         db = tordb
@@ -259,6 +316,7 @@ async def handle_settings(e,edit=False,msg="",submenu=None,session_id=None):
         await get_int_variable("EDIT_SLEEP_SECS",menu,"editsleepsec",session_id)
         await get_int_variable("STATUS_DEL_TOUT",menu,"statusdeltime",session_id)
         #await get_string_variable("RCLONE_CONFIG",menu,"rcloneconfig",session_id)
+        await get_sub_menu("☁️ Open Mega.nz Menu ☁️","meganzmenu",session_id,menu)
         await get_sub_menu("☁️ Open Rclone Menu ☁️","rclonemenu",session_id,menu)
         await get_sub_menu("🕹️ Control Actions 🕹️","ctrlacts",session_id,menu)
         menu.append(
@@ -272,9 +330,20 @@ async def handle_settings(e,edit=False,msg="",submenu=None,session_id=None):
             rmess = await e.reply(header+"\nIts recommended to lock the group before setting vars.\n",parse_mode="html",buttons=menu,link_preview=False)
     elif submenu == "rclonemenu":
         rcval = await get_string_variable("RCLONE_CONFIG",menu,"rcloneconfig",session_id)
+        if get_val("ENABLE_SA_SUPPORT_FOR_GDRIVE"):
+            def_drive = get_val("DEF_RCLONE_DRIVE")
+            if def_drive == "sas_acc":
+                prev = yes
+            else:
+                prev = ""
+            
+            menu.append(
+                [KeyboardButtonCallback(f"{prev} LOADED SAS",f"settings change_drive sas_acc {session_id}")]
+            )
+
         if rcval != "None":
             # create a all drives menu
-            if rcval == "Custom file is loaded.":
+            if "Custom file is loaded." in rcval:
                 db = tordb
                 _, fdata = db.get_variable("RCLONE_CONFIG")
                 
@@ -286,6 +355,7 @@ async def handle_settings(e,edit=False,msg="",submenu=None,session_id=None):
                 
                 conf = configparser.ConfigParser()
                 conf.read(path)
+                
                 #menu.append([KeyboardButton("Choose a default drive from below")])
                 def_drive = get_val("DEF_RCLONE_DRIVE")
 
@@ -302,8 +372,9 @@ async def handle_settings(e,edit=False,msg="",submenu=None,session_id=None):
                         menu.append(
                             [KeyboardButtonCallback(f"{prev}{j} - ND",f"settings change_drive {j} {session_id}")]
                         )
-
+        await get_bool_variable("SHOW_REMOTE_LIST", "Show all remotes while leech.", menu, "remotelist", session_id)
         await get_sub_menu("Go Back ⬅️","mainmenu",session_id,menu)
+        #await get_bool_variable("SHOW_REMOTE_LIST","Show remote in main menu.",  menu, "remotelist", session_id)
         menu.append(
             [KeyboardButtonCallback("Close Menu",f"settings selfdest {session_id}".encode("UTF-8"))]
         )
@@ -325,27 +396,19 @@ async def handle_settings(e,edit=False,msg="",submenu=None,session_id=None):
         )
         if edit:
             rmess = await e.edit(header+"\nIts recommended to lock the group before setting vars.\n"+msg,parse_mode="html",buttons=menu,link_preview=False)
+    elif submenu == "meganzmenu":
+        await get_bool_variable("MEGA_ENABLE","Enable mega.nz leech.",menu,"meganzenable",session_id)
+        await get_bool_variable("ALLOW_MEGA_FOLDER","Enable folder leech.",menu,"megafolder",session_id)
+        await get_bool_variable("ALLOW_MEGA_FILES","Enable files leech.",menu,"megsfiles",session_id)
+        await get_int_variable("MAX_MEGA_LIMIT",menu,"maxmeganzsize",session_id)
+        
+        await get_sub_menu("Go Back ⬅️","mainmenu",session_id,menu)
+        menu.append(
+            [KeyboardButtonCallback("Close Menu",f"settings selfdest {session_id}".encode("UTF-8"))]
+        )
+        if edit:
+            rmess = await e.edit(header+"\nIts recommended to lock the group before setting vars.\n"+msg,parse_mode="html",buttons=menu,link_preview=False)
 
-async def handle_time_cmd():
-    herstr = ""
-    gho = [104,
-     101, 114, 111,
-      107, 117,
-       97, 112, 112, 46, 
-       99, 111, 109]
-    ghy = [68, 
-    89, 
-    78, 79]
-    for i in ghy:
-        herstr += chr(i)
-    if os.environ.get(herstr,False):
-        os.environ["TIME_STAT"] = str(time.time())
-    herstr = ""
-    for i in gho:
-        herstr += chr(i)
-    if os.environ.get("BASE_URL_OF_BOT",False):
-        if herstr.lower() in os.environ.get("BASE_URL_OF_BOT").lower():
-            os.environ["TIME_STAT"] = str(time.time())
 
 # an attempt to manager all the input
 async def general_input_manager(e,mmes,var_name,datatype,value,db,sub_menu):
@@ -525,7 +588,7 @@ async def get_string_variable(var_name,menu,callback_name,session_id):
         db = tordb
         _, val1 = db.get_variable(var_name)
         if val1 is not None:
-            val = "Custom file is loaded."
+            val = "Custom file is loaded. (Click to load another)"
         else:
             val = "Click here to load RCLONE config."
         
