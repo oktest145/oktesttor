@@ -1,12 +1,12 @@
 {
   "name": "test Bot",
-  "description": "A Telegram Bot that YT-DL supported for downloading youtube videos. Supports uploading to different cloud providers. ",
+  "description": "A Telegram Bot ",
   "keywords": [
     "telegram","bot","the","and"
   ],
-  "repository": "https://github.com/reaitten/tk",
-  "success_url": "https://github.com/reaitten/tk",
-  "website": "https://github.com/reaitten/tk",
+  "repository": "https://github.com/",
+  "success_url": "https://github.com/",
+  "website": "https://github.com/",
   "env": {
     "BOT_TOKEN": {
       "description": "Your bot token, as a string.",
@@ -59,13 +59,5 @@
       "required": false
     } 
   },
- "stack": "container",
- "addons": [
-    {
-      "plan": "heroku-postgresql",
-      "options": {
-        "version": "10"
-      }
-    }
-  ]
+ "stack": "container"
 }
